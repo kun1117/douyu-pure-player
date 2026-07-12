@@ -428,7 +428,9 @@
                     document.getElementById("anchorName").textContent = room.nickname || "未知";
                     document.getElementById("anchorStatus").textContent = isLive ? "开播" : "未开播";
                     document.getElementById("anchorTitle").textContent = room.room_name || "";
-                    if (room.avatar?.small) {
+                    if (room.avatar?.big) {
+                        document.getElementById("anchorAvatar").src = room.avatar.big;
+                    } else if (room.avatar?.small) {
                         document.getElementById("anchorAvatar").src = room.avatar.small;
                     }
                 }
