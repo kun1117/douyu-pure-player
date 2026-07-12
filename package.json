@@ -1,0 +1,16 @@
+{
+  "name": "douyu-pure-player",
+  "version": "1.0.0",
+  "description": "斗鱼直播纯净播放器 - flv.js 纯画面播放",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "safe-eval": "^0.4.1",
+    "query-string": "^8.1.0",
+    "axios": "^1.6.2"
+  }
+}

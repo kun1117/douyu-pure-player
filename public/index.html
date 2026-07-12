@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>斗鱼纯净播放器</title>
+    <script src="https://cdn.jsdelivr.net/npm/flv.js@latest"></script>
+    <style>
+        /* ============================
+           全局重置
+           ============================ */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            width: 100%; height: 100%;
+            background: #000;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* ============================
+           主播放器容器
+           ============================ */
+        #app {
+            width: 100%; height: 100vh;
+            position: relative;
+            background: #000;
+        }
+
+        video {
+            width: 100%; height: 100%;
+            object-fit: contain;
+            display: block;
+            background: #000;
+        }
+
+        /* ============================
+           初始界面
+           ============================ */
+        #launcher {
+            position: fixed; inset: 0; z-index: 100;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            background: #0a0a0a;
+            transition: opacity .5s ease;
+        }
+        #launcher.hidden {
+            opacity: 0; pointer-events: none;
+        }
+
+        .launcher-logo {
+            width: 80px; height: 80px; border-radius: 18px;
+            background: linear-gradient(135deg, #FF4400, #ff7700);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 44px; font-weight: 800; color: #fff;
+            margin-bottom: 24px;
+            box-shadow: 0 8px 32px rgba(255,68,0,.3);
+        }
+
+        .launcher-title {
+            font-size: 28px; font-weight: 700; color: #fff;
+            margin-bottom: 6px;
+        }
+        .launcher-sub {
+            color: rgba(255,255,255,.45); font-size: 15px;
+            margin-bottom: 32px;
+        }
+
+        .launcher-form {
+            display: flex; gap: 10px;
+            width: 100%; max-width: 420px; padding: 0 20px;
+        }
+        .launcher-form input {
+            flex: 1; padding: 12px 18px; border-radius: 8px;
+            border: 1px solid rgba(255,255,255,.12);
+            background: rgba(255,255,255,.06); color: #fff;
+            font-size: 16px; outline: none; transition: border .2s;
+        }
+        .launcher-form input:focus { border-color: #FF4400; }
+        .launcher-form input::placeholder { color: rgba(255,255,255,.3); }
+        .launcher-form button {
+            padding: 12px 28px; border-radius: 8px; border: none;
+            background: #FF4400; color: #fff;
+            font-size: 16px; font-weight: 600; cursor: pointer;
+            transition: background .2s, transform .15s;
+            white-space: nowrap;
+        }
+        .launcher-form button:hover { background: #e63e00; }
+        .launcher-form button:active { transform: scale(.97); }
+
+        .launcher-hint {
+            margin-top: 16px; font-size: 13px; color: rgba(255,255,255,.3);
+        }
+        .launcher-hint code {
+            color: rgba(255,255,255,.5); background: rgba(255,255,255,.06);
+            padding: 2px 8px; border-radius: 4px;
+        }
+        .launcher-error {
+            margin-top: 12px; color: #ff6b6b; font-size: 14px; display: none;
+        }
+
+        /* ============================
+           悬浮控制栏
+           ============================ */
+        #controls {
+            position: fixed; left: 0; right: 0; z-index: 50;
+            opacity: 0; transition: opacity .3s ease;
+            pointer-events: none;
+        }
+        #controls.visible { opacity: 1; pointer-events: auto; }
+
+        /* 顶部栏 */
+        #topBar {
+            top: 0; padding: 16px 20px;
+            background: linear-gradient(180deg, rgba(0,0,0,.75) 0%, transparent 100%);
+            display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+        }
+        #topBar .room-tag {
+            color: #fff; font-size: 14px; font-weight: 600;
+            display: flex; align-items: center; gap: 6px;
+        }
+        #topBar .room-tag .dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            display: inline-block;
+        }
+        #topBar .room-tag .dot.on { background: #ff4444; box-shadow: 0 0 8px #ff4444; }
+        #topBar .room-tag .dot.off { background: #666; }
+        #topBar .room-info { color: rgba(255,255,255,.6); font-size: 13px; }
+        #topBar .spacer { flex: 1; }
+        #topBar .ctrl-btn {
+            background: rgba(255,255,255,.1); border: none; color: #fff;
+            padding: 6px 14px; border-radius: 6px; font-size: 13px;
+            cursor: pointer; transition: background .2s;
+        }
+        #topBar .ctrl-btn:hover { background: rgba(255,255,255,.2); }
+
+        /* 底部栏 */
+        #bottomBar {
+            bottom: 0; padding: 14px 20px;
+            background: linear-gradient(0deg, rgba(0,0,0,.75) 0%, transparent 100%);
+            display: flex; align-items: center; gap: 16px;
+        }
+        #bottomBar .play-btn {
+            width: 40px; height: 40px; border-radius: 50%;
+            border: none; background: rgba(255,255,255,.12); color: #fff;
+            font-size: 18px; cursor: pointer; transition: background .2s;
+            display: flex; align-items: center; justify-content: center;
+        }
+        #bottomBar .play-btn:hover { background: rgba(255,255,255,.25); }
+        #bottomBar .time-info { color: rgba(255,255,255,.5); font-size: 12px; min-width: 70px; }
+        #bottomBar .vol-group { display: flex; align-items: center; gap: 6px; }
+        #bottomBar .vol-group input[type=range] {
+            width: 80px; height: 4px; -webkit-appearance: none;
+            background: rgba(255,255,255,.2); border-radius: 2px; outline: none;
+        }
+        #bottomBar .vol-group input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 14px; height: 14px;
+            border-radius: 50%; background: #fff; cursor: pointer;
+        }
+        #bottomBar .ctrl-group { margin-left: auto; display: flex; gap: 8px; }
+        #bottomBar .ctrl-group button {
+            background: transparent; border: none; color: rgba(255,255,255,.7);
+            padding: 6px 10px; border-radius: 4px; font-size: 13px; cursor: pointer;
+            transition: color .2s, background .2s;
+        }
+        #bottomBar .ctrl-group button:hover { color: #fff; background: rgba(255,255,255,.1); }
+        #bottomBar .ctrl-group button.active { color: #FF4400; }
+
+        /* 纯画面模式 */
+        #app.pure-mode #controls { display: none; }
+        #app.pure-mode video { cursor: none; }
+
+        /* ============================
+           断开提示遮罩
+           ============================ */
+        #overlay {
+            position: fixed; inset: 0; z-index: 60;
+            display: none; align-items: center; justify-content: center;
+            background: rgba(0,0,0,.6);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+        }
+        #overlay.show { display: flex; }
+        #overlay .msg { text-align: center; }
+        #overlay .msg .icon { font-size: 48px; margin-bottom: 12px; }
+        #overlay .msg .text { color: #fff; font-size: 18px; font-weight: 500; }
+        #overlay .msg .sub { color: rgba(255,255,255,.5); font-size: 14px; margin-top: 6px; }
+        #overlay .msg .retry-btn {
+            margin-top: 20px; padding: 10px 28px; border-radius: 8px;
+            border: none; background: #FF4400; color: #fff;
+            font-size: 15px; font-weight: 600; cursor: pointer;
+            transition: background .2s;
+        }
+        #overlay .msg .retry-btn:hover { background: #e63e00; }
+
+        /* ============================
+           响应式
+           ============================ */
+        @media (max-width: 600px) {
+            .launcher-title { font-size: 22px; }
+            .launcher-form { flex-direction: column; }
+            #topBar { padding: 10px 12px; }
+            #bottomBar { padding: 10px 12px; gap: 10px; }
+            #bottomBar .vol-group input[type=range] { width: 50px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ======================== 初始界面 ======================== -->
+<div id="launcher">
+    <div class="launcher-logo">斗</div>
+    <div class="launcher-title">斗鱼纯净播放器</div>
+    <div class="launcher-sub">只播放直播画面，没有弹幕和杂项干扰</div>
+    <div class="launcher-form">
+        <input id="roomInput" type="text" placeholder="输入直播间号" value="5092355" />
+        <button onclick="launch()">开始观看</button>
+    </div>
+    <div class="launcher-hint">例如 <code>6</code> <code>5092355</code></div>
+    <div class="launcher-error" id="launcherError"></div>
+</div>
+
+<!-- ======================== 播放器主体 ======================== -->
+<div id="app">
+    <video id="video" autoplay muted playsinline></video>
+
+    <!-- 断开/重连遮罩 -->
+    <div id="overlay">
+        <div class="msg">
+            <div class="icon">📡</div>
+            <div class="text" id="overlayText">连接已断开</div>
+            <div class="sub" id="overlaySub">正在尝试自动重连...</div>
+            <button class="retry-btn" onclick="manualReconnect()">手动重连</button>
+        </div>
+    </div>
+
+    <!-- 顶部控制栏 -->
+    <div id="controls">
+        <div id="topBar">
+            <div class="room-tag">
+                <span class="dot on" id="statusDot"></span>
+                <span id="statusText">直播中</span>
+            </div>
+            <div class="room-info" id="roomInfo">房间 ...</div>
+            <div class="room-info" id="qualityInfo">原画</div>
+            <div class="spacer"></div>
+            <button class="ctrl-btn" onclick="togglePure()" id="pureBtn">🙈 纯画面</button>
+            <input id="reconnectInput" type="text" placeholder="换房间号" style="width:90px;padding:4px 8px;border-radius:4px;border:none;outline:none;background:rgba(255,255,255,.1);color:#fff;font-size:13px;" />
+            <button class="ctrl-btn" onclick="switchRoom()">切换</button>
+        </div>
+
+        <div id="bottomBar">
+            <button class="play-btn" id="playBtn" onclick="togglePlay()">⏸</button>
+            <div class="time-info" id="timeInfo">00:00</div>
+            <div class="vol-group">
+                <span style="color:rgba(255,255,255,.5);font-size:13px;">🔊</span>
+                <input type="range" id="volSlider" min="0" max="1" step="0.05" value="1" oninput="setVolume(this.value)" />
+            </div>
+            <div class="ctrl-group">
+                <button onclick="toggleFullscreen()" title="全屏">⛶</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    /* ============================================================
+     *  状态
+     * ============================================================ */
+    let flvPlayer = null;
+    let currentRoomId = "";
+    let isPlaying = false;
+    let isPureMode = false;
+    let reconnectTimer = null;
+    let reconnectAttempts = 0;
+    const MAX_RECONNECT = 10;
+    const RECONNECT_INTERVAL = 5000;
+
+    let currentStreamUrl = "";
+
+    const video = document.getElementById("video");
+    const app = document.getElementById("app");
+    const controls = document.getElementById("controls");
+    const overlay = document.getElementById("overlay");
+
+    let controlsTimeout = null;
+
+    /* ============================================================
+     *  控制栏显隐（鼠标移动时显示，2秒后隐藏）
+     * ============================================================ */
+    document.addEventListener("mousemove", () => {
+        if (isPureMode) return;
+        controls.classList.add("visible");
+        clearTimeout(controlsTimeout);
+        controlsTimeout = setTimeout(() => controls.classList.remove("visible"), 2000);
+    });
+
+    /* ============================================================
+     *  启动
+     * ============================================================ */
+    function launch() {
+        const input = document.getElementById("roomInput").value.trim();
+        if (!input) return showError("请输入直播间号");
+        currentRoomId = parseRoomId(input);
+        if (!currentRoomId) return showError("直播间号格式不对");
+
+        document.getElementById("launcher").classList.add("hidden");
+        hideError();
+        startStream(currentRoomId);
+    }
+
+    function parseRoomId(val) {
+        const m = val.match(/(\d+)/);
+        return m ? m[1] : null;
+    }
+
+    function showError(msg) {
+        const el = document.getElementById("launcherError");
+        el.textContent = msg;
+        el.style.display = "block";
+    }
+    function hideError() {
+        document.getElementById("launcherError").style.display = "none";
+    }
+
+    /* ============================================================
+     *  Step 1: 通过后端 API 获取流地址
+     * ============================================================ */
+    async function startStream(roomId) {
+        currentRoomId = roomId;
+        showOverlay("📡", "获取直播信息...", "请稍候");
+        updateStatus("connecting", "获取中...");
+        reconnectAttempts = 0;
+
+        try {
+            // 先获取房间信息
+            const roomRes = await fetch(`/api/room/${roomId}`);
+            if (roomRes.ok) {
+                const roomData = await roomRes.json();
+                const room = roomData?.room;
+                if (room) {
+                    document.getElementById("roomInfo").textContent =
+                        `${room.nickname} · ${room.room_name}`;
+                    const dot = document.getElementById("statusDot");
+                    dot.className = `dot ${room.status === "1" ? "on" : "off"}`;
+                }
+            }
+
+            // 获取流地址
+            const res = await fetch(`/api/live/${roomId}?rate=0`);
+            const data = await res.json();
+
+            if (data.living === false) {
+                showOverlay("😴", "主播未开播", "当前没有直播信号");
+                updateStatus("offline", "未开播");
+                return;
+            }
+
+            currentStreamUrl = data.currentStream.url;
+            const qualityName = data.currentStream.name || "原画";
+            document.getElementById("qualityInfo").textContent = qualityName;
+            document.getElementById("roomInfo").textContent =
+                document.getElementById("roomInfo").textContent + ` | ${data.online || 0}人`;
+
+            // 开始播放
+            initPlayer(currentStreamUrl);
+        } catch (err) {
+            console.error("获取流地址失败:", err);
+            if (reconnectAttempts < MAX_RECONNECT) {
+                scheduleReconnect(roomId, err.message);
+            } else {
+                showOverlay("❌", "获取失败", err.message || "无法获取直播流地址");
+                updateStatus("error", "获取失败");
+            }
+        }
+    }
+
+    /* ============================================================
+     *  Step 2: 初始化 flv.js 播放器
+     * ============================================================ */
+    function initPlayer(url) {
+        destroyPlayer();
+
+        if (!flvjs.isSupported()) {
+            showOverlay("⚠️", "浏览器不支持", "当前浏览器不支持 flv.js 播放");
+            return;
+        }
+
+        try {
+            // 尝试直连 — 先用原始 URL
+            // 如果遇到 CORS 问题，会自动走代理
+            flvPlayer = flvjs.createPlayer(
+                { type: "flv", url: url, isLive: true },
+                {
+                    enableWorker: false,      // 不启用 Worker（兼容性更好）
+                    enableStashBuffer: false, // 直播场景关闭缓冲
+                    stashInitialSize: 128,    // 128KB 初始缓冲
+                    isLive: true,
+                },
+            );
+
+            flvPlayer.attachMediaElement(video);
+            flvPlayer.load();
+            flvPlayer.play().then(() => {
+                isPlaying = true;
+                document.getElementById("playBtn").textContent = "⏸";
+                hideOverlay();
+                updateStatus("live", "直播中");
+            }).catch((err) => {
+                console.warn("flv.js play() 被阻止，尝试代理模式...", err);
+                // 如果直连失败，尝试用代理
+                tryProxyPlay(url);
+            });
+
+            // 错误监听
+            flvPlayer.on(flvjs.Events.ERROR, (errType, errDetail, errInfo) => {
+                console.error("flv.js 错误:", errType, errDetail, errInfo);
+                handlePlayerError(errType, errDetail);
+            });
+
+            // 统计信息更新
+            flvPlayer.on(flvjs.Events.STATISTICS_INFO, (stats) => {
+                const speed = (stats.speed / 1024).toFixed(0);
+                document.getElementById("timeInfo").textContent =
+                    `${speed} KB/s`;
+            });
+
+        } catch (err) {
+            console.error("初始化播放器失败:", err);
+            tryProxyPlay(url);
+        }
+    }
+
+    /* ============================================================
+     *  代理模式重试（解决 CORS 问题）
+     * ============================================================ */
+    async function tryProxyPlay(url) {
+        destroyPlayer();
+        const proxyUrl = `/api/proxy?url=${encodeURIComponent(url)}`;
+
+        try {
+            flvPlayer = flvjs.createPlayer(
+                { type: "flv", url: proxyUrl, isLive: true },
+                {
+                    enableWorker: false,
+                    enableStashBuffer: false,
+                    stashInitialSize: 128,
+                    isLive: true,
+                },
+            );
+
+            flvPlayer.attachMediaElement(video);
+            flvPlayer.load();
+            await flvPlayer.play();
+            isPlaying = true;
+            document.getElementById("playBtn").textContent = "⏸";
+            hideOverlay();
+            updateStatus("live", "直播中(代理)");
+        } catch (err2) {
+            console.error("代理模式也失败:", err2);
+            showOverlay("❌", "播放失败", `CORS 错误，请检查后端代理配置`);
+            updateStatus("error", "播放失败");
+        }
+    }
+
+    /* ============================================================
+     *  断流重连逻辑
+     * ============================================================ */
+    function handlePlayerError(errType, errDetail) {
+        console.log("播放器错误:", errType, errDetail);
+
+        if (errType === "NetworkError" || errType === "MediaError") {
+            // 网络断开或媒体错误 — 尝试重连
+            if (reconnectAttempts < MAX_RECONNECT && currentRoomId) {
+                scheduleReconnect(currentRoomId);
+            } else {
+                showOverlay("📡", "连接断开", "已达到最大重连次数，请手动重试");
+                updateStatus("error", "断开");
+            }
+        }
+    }
+
+    function scheduleReconnect(roomId, reason) {
+        reconnectAttempts++;
+        const msg = reason ? `(${reason.substring(0, 30)})` : "";
+        showOverlay(
+            "📡",
+            `连接断开，正在重连 (${reconnectAttempts}/${MAX_RECONNECT})`,
+            `${RECONNECT_INTERVAL / 1000}秒后自动重试 ${msg}`,
+        );
+        updateStatus("reconnecting", `重连中 ${reconnectAttempts}/${MAX_RECONNECT}`);
+
+        clearTimeout(reconnectTimer);
+        reconnectTimer = setTimeout(() => {
+            startStream(roomId);
+        }, RECONNECT_INTERVAL);
+    }
+
+    function manualReconnect() {
+        clearTimeout(reconnectTimer);
+        if (currentRoomId) {
+            reconnectAttempts = 0;
+            startStream(currentRoomId);
+        }
+    }
+
+    /* ============================================================
+     *  播放器销毁与切换
+     * ============================================================ */
+    function destroyPlayer() {
+        if (flvPlayer) {
+            try {
+                flvPlayer.pause();
+                flvPlayer.unload();
+                flvPlayer.detachMediaElement();
+                flvPlayer.destroy();
+            } catch (e) {
+                console.warn("销毁播放器:", e.message);
+            }
+            flvPlayer = null;
+        }
+        isPlaying = false;
+    }
+
+    function switchRoom() {
+        const input = document.getElementById("reconnectInput").value.trim();
+        if (!input) return;
+        const roomId = parseRoomId(input);
+        if (!roomId) return;
+        clearTimeout(reconnectTimer);
+        reconnectAttempts = 0;
+        currentRoomId = roomId;
+        document.getElementById("roomInput").value = roomId;
+        startStream(roomId);
+    }
+
+    /* ============================================================
+     *  播放控制
+     * ============================================================ */
+    function togglePlay() {
+        if (!flvPlayer) return;
+        if (isPlaying) {
+            flvPlayer.pause();
+            isPlaying = false;
+            document.getElementById("playBtn").textContent = "▶";
+        } else {
+            flvPlayer.play().catch(() => {});
+            isPlaying = true;
+            document.getElementById("playBtn").textContent = "⏸";
+        }
+    }
+
+    function setVolume(val) {
+        video.volume = val;
+    }
+
+    function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+            app.requestFullscreen?.() || app.webkitRequestFullscreen?.();
+        } else {
+            document.exitFullscreen?.() || document.webkitExitFullscreen?.();
+        }
+    }
+
+    /* ============================================================
+     *  纯画面模式
+     * ============================================================ */
+    function togglePure() {
+        isPureMode = !isPureMode;
+        app.classList.toggle("pure-mode", isPureMode);
+        document.getElementById("pureBtn").textContent = isPureMode ? "👁 退出" : "🙈 纯画面";
+        if (!isPureMode) {
+            controls.classList.add("visible");
+        }
+    }
+
+    /* ============================================================
+     *  UI 辅助
+     * ============================================================ */
+    function updateStatus(state, text) {
+        const dot = document.getElementById("statusDot");
+        const statusText = document.getElementById("statusText");
+        dot.className = "dot";
+        if (state === "live") dot.classList.add("on");
+        else if (state === "connecting") dot.classList.add("off");
+        else if (state === "reconnecting") dot.classList.add("off");
+        else if (state === "offline") dot.classList.add("off");
+        else if (state === "error") dot.classList.add("off");
+        statusText.textContent = text;
+    }
+
+    function showOverlay(icon, text, sub) {
+        overlay.classList.add("show");
+        document.querySelector("#overlay .icon").textContent = icon;
+        document.getElementById("overlayText").textContent = text;
+        document.getElementById("overlaySub").textContent = sub || "";
+    }
+
+    function hideOverlay() {
+        overlay.classList.remove("show");
+    }
+
+    /* ============================================================
+     *  键盘快捷键
+     * ============================================================ */
+    document.addEventListener("keydown", (e) => {
+        if (e.target.tagName === "INPUT") return;
+
+        switch (e.key) {
+            case " ":
+                e.preventDefault();
+                togglePlay();
+                break;
+            case "f":
+            case "F":
+                toggleFullscreen();
+                break;
+            case "Escape":
+                if (isPureMode) togglePure();
+                break;
+        }
+    });
+
+    /* ============================================================
+     *  回车触发
+     * ============================================================ */
+    document.getElementById("roomInput").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") launch();
+    });
+    document.getElementById("reconnectInput").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") switchRoom();
+    });
+</script>
+</body>
+</html>
