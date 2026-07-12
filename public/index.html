@@ -176,35 +176,6 @@
         /* ============================
            控制栏（静态，不再悬浮）
            ============================ */
-        #topBar {
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 10px 24px;
-            background: #0f0f0f;
-            border-top: 1px solid rgba(255,255,255,.06);
-            border-bottom: 1px solid rgba(255,255,255,.06);
-        }
-        #topBar .room-tag {
-            color: #fff; font-size: 13px; font-weight: 600;
-            display: flex; align-items: center; gap: 6px;
-        }
-        #topBar .room-tag .dot {
-            width: 8px; height: 8px; border-radius: 50%;
-            display: inline-block;
-        }
-        #topBar .room-tag .dot.on { background: #ff4444; box-shadow: 0 0 8px #ff4444; }
-        #topBar .room-tag .dot.off { background: #666; }
-        #topBar .room-info { color: rgba(255,255,255,.5); font-size: 12px; }
-        #topBar .spacer { flex: 1; }
-        #topBar .ctrl-btn {
-            background: rgba(255,255,255,.08); border: none; color: #fff;
-            padding: 5px 12px; border-radius: 5px; font-size: 12px;
-            cursor: pointer; transition: background .2s;
-        }
-        #topBar .ctrl-btn:hover { background: rgba(255,255,255,.16); }
-
         /* 底部控制栏：音量 + 全屏靠右 */
         #controlBar {
             flex-shrink: 0;
@@ -244,12 +215,6 @@
             line-height: 1;
         }
         #controlBar .ctrl-btn:hover { color: #fff; background: rgba(255,255,255,.1); }
-
-        /* 纯画面模式 */
-        #app.pure-mode #topBar { display: none; }
-        #app.pure-mode #controlBar { display: none; }
-        #app.pure-mode #anchorBar { display: none; }
-        #app.pure-mode video { cursor: none; }
 
         /* ============================
            断开提示遮罩
@@ -334,20 +299,6 @@
         </div>
     </div>
 
-    <!-- 顶部控制栏（状态/房间/切换等） -->
-    <div id="topBar">
-        <div class="room-tag">
-            <span class="dot on" id="statusDot"></span>
-            <span id="statusText">直播中</span>
-        </div>
-        <div class="room-info" id="roomInfo">房间 ...</div>
-        <div class="room-info" id="qualityInfo">原画</div>
-        <div class="spacer"></div>
-        <button class="ctrl-btn" onclick="togglePure()" id="pureBtn">🙈 纯画面</button>
-        <input id="reconnectInput" type="text" placeholder="换房间号" style="width:80px;padding:4px 8px;border-radius:4px;border:none;outline:none;background:rgba(255,255,255,.08);color:#fff;font-size:12px;" />
-        <button class="ctrl-btn" onclick="switchRoom()">切换</button>
-    </div>
-
     <!-- 底部控制栏（音量 + 全屏，靠右） -->
     <div id="controlBar">
         <div class="vol-group">
@@ -365,7 +316,6 @@
     let flvPlayer = null;
     let currentRoomId = "";
     let isPlaying = false;
-    let isPureMode = false;
     let isMuted = false;
     let isBrowserMuted = false;  // 浏览器因自动播放策略强制静音
     let reconnectTimer = null;
@@ -424,11 +374,6 @@
                 const roomData = await roomRes.json();
                 const room = roomData?.room;
                 if (room) {
-                    document.getElementById("roomInfo").textContent =
-                        `${room.nickname} · ${room.room_name}`;
-                    const dot = document.getElementById("statusDot");
-                    dot.className = `dot ${room.status === "1" ? "on" : "off"}`;
-
                     // 填充主播信息卡片（视频上方）
                     const isLive = room.status === "1";
                     document.getElementById("anchorName").textContent = room.nickname || "未知";
@@ -451,10 +396,6 @@
             }
 
             currentStreamUrl = data.currentStream.url;
-            const qualityName = data.currentStream.name || "原画";
-            document.getElementById("qualityInfo").textContent = qualityName;
-            document.getElementById("roomInfo").textContent =
-                document.getElementById("roomInfo").textContent + ` | ${data.online || 0}人`;
 
             // 开始播放
             initPlayer(currentStreamUrl);
@@ -636,17 +577,6 @@
         isPlaying = false;
     }
 
-    function switchRoom() {
-        const input = document.getElementById("reconnectInput").value.trim();
-        if (!input) return;
-        const roomId = parseRoomId(input);
-        if (!roomId) return;
-        clearTimeout(reconnectTimer);
-        reconnectAttempts = 0;
-        currentRoomId = roomId;
-        document.getElementById("roomInput").value = roomId;
-        startStream(roomId);
-    }
 
     /* ============================================================
      *  播放控制
@@ -708,27 +638,10 @@
     }
 
     /* ============================================================
-     *  纯画面模式
-     * ============================================================ */
-    function togglePure() {
-        isPureMode = !isPureMode;
-        app.classList.toggle("pure-mode", isPureMode);
-        document.getElementById("pureBtn").textContent = isPureMode ? "👁 退出" : "🙈 纯画面";
-    }
-
-    /* ============================================================
      *  UI 辅助
      * ============================================================ */
     function updateStatus(state, text) {
-        const dot = document.getElementById("statusDot");
-        const statusText = document.getElementById("statusText");
-        dot.className = "dot";
-        if (state === "live") dot.classList.add("on");
-        else if (state === "connecting") dot.classList.add("off");
-        else if (state === "reconnecting") dot.classList.add("off");
-        else if (state === "offline") dot.classList.add("off");
-        else if (state === "error") dot.classList.add("off");
-        statusText.textContent = text;
+        // 状态显示已移除
     }
 
     function showOverlay(icon, text, sub) {
@@ -753,9 +666,6 @@
             case "F":
                 toggleFullscreen();
                 break;
-            case "Escape":
-                if (isPureMode) togglePure();
-                break;
         }
     });
 
@@ -765,9 +675,7 @@
     document.getElementById("roomInput").addEventListener("keydown", (e) => {
         if (e.key === "Enter") launch();
     });
-    document.getElementById("reconnectInput").addEventListener("keydown", (e) => {
-        if (e.key === "Enter") switchRoom();
-    });
+
 </script>
 </body>
 </html>
