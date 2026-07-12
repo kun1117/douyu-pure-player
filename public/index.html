@@ -174,23 +174,20 @@
         }
 
         /* ============================
-           悬浮控制栏
+           控制栏（静态，不再悬浮）
            ============================ */
-        #controls {
-            position: fixed; left: 0; right: 0; z-index: 50;
-            opacity: 0; transition: opacity .3s ease;
-            pointer-events: none;
-        }
-        #controls.visible { opacity: 1; pointer-events: auto; }
-
-        /* 顶部栏 */
         #topBar {
-            top: 0; padding: 16px 20px;
-            background: linear-gradient(180deg, rgba(0,0,0,.75) 0%, transparent 100%);
-            display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 24px;
+            background: #0f0f0f;
+            border-top: 1px solid rgba(255,255,255,.06);
+            border-bottom: 1px solid rgba(255,255,255,.06);
         }
         #topBar .room-tag {
-            color: #fff; font-size: 14px; font-weight: 600;
+            color: #fff; font-size: 13px; font-weight: 600;
             display: flex; align-items: center; gap: 6px;
         }
         #topBar .room-tag .dot {
@@ -199,49 +196,58 @@
         }
         #topBar .room-tag .dot.on { background: #ff4444; box-shadow: 0 0 8px #ff4444; }
         #topBar .room-tag .dot.off { background: #666; }
-        #topBar .room-info { color: rgba(255,255,255,.6); font-size: 13px; }
+        #topBar .room-info { color: rgba(255,255,255,.5); font-size: 12px; }
         #topBar .spacer { flex: 1; }
         #topBar .ctrl-btn {
-            background: rgba(255,255,255,.1); border: none; color: #fff;
-            padding: 6px 14px; border-radius: 6px; font-size: 13px;
+            background: rgba(255,255,255,.08); border: none; color: #fff;
+            padding: 5px 12px; border-radius: 5px; font-size: 12px;
             cursor: pointer; transition: background .2s;
         }
-        #topBar .ctrl-btn:hover { background: rgba(255,255,255,.2); }
+        #topBar .ctrl-btn:hover { background: rgba(255,255,255,.16); }
 
-        /* 底部栏 */
-        #bottomBar {
-            bottom: 0; padding: 14px 20px;
-            background: linear-gradient(0deg, rgba(0,0,0,.75) 0%, transparent 100%);
-            display: flex; align-items: center; gap: 16px;
+        /* 底部控制栏：音量 + 全屏靠右 */
+        #controlBar {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 16px;
+            padding: 8px 24px;
+            background: #0f0f0f;
+            height: 48px;
         }
-        #bottomBar .play-btn {
-            width: 40px; height: 40px; border-radius: 50%;
-            border: none; background: rgba(255,255,255,.12); color: #fff;
-            font-size: 18px; cursor: pointer; transition: background .2s;
-            display: flex; align-items: center; justify-content: center;
+        #controlBar .vol-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
-        #bottomBar .play-btn:hover { background: rgba(255,255,255,.25); }
-        #bottomBar .time-info { color: rgba(255,255,255,.5); font-size: 12px; min-width: 70px; }
-        #bottomBar .vol-group { display: flex; align-items: center; gap: 6px; }
-        #bottomBar .vol-group input[type=range] {
-            width: 80px; height: 4px; -webkit-appearance: none;
+        #controlBar .vol-group .vol-btn {
+            background: transparent; border: none;
+            color: rgba(255,255,255,.7); font-size: 16px;
+            cursor: pointer; padding: 2px; line-height: 1;
+            transition: color .2s;
+        }
+        #controlBar .vol-group .vol-btn:hover { color: #fff; }
+        #controlBar .vol-group input[type=range] {
+            width: 90px; height: 4px; -webkit-appearance: none;
             background: rgba(255,255,255,.2); border-radius: 2px; outline: none;
         }
-        #bottomBar .vol-group input[type=range]::-webkit-slider-thumb {
+        #controlBar .vol-group input[type=range]::-webkit-slider-thumb {
             -webkit-appearance: none; width: 14px; height: 14px;
             border-radius: 50%; background: #fff; cursor: pointer;
         }
-        #bottomBar .ctrl-group { margin-left: auto; display: flex; gap: 8px; }
-        #bottomBar .ctrl-group button {
-            background: transparent; border: none; color: rgba(255,255,255,.7);
-            padding: 6px 10px; border-radius: 4px; font-size: 13px; cursor: pointer;
+        #controlBar .ctrl-btn {
+            background: transparent; border: none;
+            color: rgba(255,255,255,.7); font-size: 16px;
+            cursor: pointer; padding: 4px 8px; border-radius: 4px;
             transition: color .2s, background .2s;
+            line-height: 1;
         }
-        #bottomBar .ctrl-group button:hover { color: #fff; background: rgba(255,255,255,.1); }
-        #bottomBar .ctrl-group button.active { color: #FF4400; }
+        #controlBar .ctrl-btn:hover { color: #fff; background: rgba(255,255,255,.1); }
 
         /* 纯画面模式 */
-        #app.pure-mode #controls { display: none; }
+        #app.pure-mode #topBar { display: none; }
+        #app.pure-mode #controlBar { display: none; }
         #app.pure-mode #anchorBar { display: none; }
         #app.pure-mode video { cursor: none; }
 
@@ -326,34 +332,29 @@
                 <button class="retry-btn" onclick="manualReconnect()">手动重连</button>
             </div>
         </div>
+    </div>
 
-        <!-- 顶部控制栏 -->
-        <div id="controls">
-            <div id="topBar">
-                <div class="room-tag">
-                    <span class="dot on" id="statusDot"></span>
-                    <span id="statusText">直播中</span>
-                </div>
-                <div class="room-info" id="roomInfo">房间 ...</div>
-                <div class="room-info" id="qualityInfo">原画</div>
-                <div class="spacer"></div>
-                <button class="ctrl-btn" onclick="togglePure()" id="pureBtn">🙈 纯画面</button>
-                <input id="reconnectInput" type="text" placeholder="换房间号" style="width:90px;padding:4px 8px;border-radius:4px;border:none;outline:none;background:rgba(255,255,255,.1);color:#fff;font-size:13px;" />
-                <button class="ctrl-btn" onclick="switchRoom()">切换</button>
-            </div>
-
-            <div id="bottomBar">
-                <button class="play-btn" id="playBtn" onclick="togglePlay()">⏸</button>
-                <div class="time-info" id="timeInfo">00:00</div>
-                <div class="vol-group">
-                    <button id="muteBtn" onclick="toggleMute()" style="background:transparent;border:none;color:rgba(255,255,255,.7);font-size:16px;cursor:pointer;padding:2px;" title="静音开关">🔊</button>
-                    <input type="range" id="volSlider" min="0" max="1" step="0.05" value="1" oninput="setVolume(this.value)" />
-                </div>
-                <div class="ctrl-group">
-                    <button onclick="toggleFullscreen()" title="全屏">⛶</button>
-                </div>
-            </div>
+    <!-- 顶部控制栏（状态/房间/切换等） -->
+    <div id="topBar">
+        <div class="room-tag">
+            <span class="dot on" id="statusDot"></span>
+            <span id="statusText">直播中</span>
         </div>
+        <div class="room-info" id="roomInfo">房间 ...</div>
+        <div class="room-info" id="qualityInfo">原画</div>
+        <div class="spacer"></div>
+        <button class="ctrl-btn" onclick="togglePure()" id="pureBtn">🙈 纯画面</button>
+        <input id="reconnectInput" type="text" placeholder="换房间号" style="width:80px;padding:4px 8px;border-radius:4px;border:none;outline:none;background:rgba(255,255,255,.08);color:#fff;font-size:12px;" />
+        <button class="ctrl-btn" onclick="switchRoom()">切换</button>
+    </div>
+
+    <!-- 底部控制栏（音量 + 全屏，靠右） -->
+    <div id="controlBar">
+        <div class="vol-group">
+            <button class="vol-btn" id="muteBtn" onclick="toggleMute()" title="静音开关">🔊</button>
+            <input type="range" id="volSlider" min="0" max="1" step="0.05" value="1" oninput="setVolume(this.value)" />
+        </div>
+        <button class="ctrl-btn" onclick="toggleFullscreen()" title="全屏">⛶</button>
     </div>
 </div>
 
@@ -377,20 +378,7 @@
     const video = document.getElementById("video");
     const app = document.getElementById("app");
     const videoWrapper = document.getElementById("videoWrapper");
-    const controls = document.getElementById("controls");
     const overlay = document.getElementById("overlay");
-
-    let controlsTimeout = null;
-
-    /* ============================================================
-     *  控制栏显隐（鼠标移动时显示，2秒后隐藏）
-     * ============================================================ */
-    document.addEventListener("mousemove", () => {
-        if (isPureMode) return;
-        controls.classList.add("visible");
-        clearTimeout(controlsTimeout);
-        controlsTimeout = setTimeout(() => controls.classList.remove("visible"), 2000);
-    });
 
     /* ============================================================
      *  启动
@@ -516,7 +504,6 @@
                 isPlaying = true;
                 isBrowserMuted = false;
                 isMuted = false;
-                document.getElementById("playBtn").textContent = "⏸";
                 updateMuteUI();
                 hideOverlay();
                 updateStatus("live", "直播中");
@@ -528,7 +515,6 @@
                 isMuted = true;
                 flvPlayer.play().then(() => {
                     isPlaying = true;
-                    document.getElementById("playBtn").textContent = "⏸";
                     updateMuteUI();
                     hideOverlay();
                     updateStatus("live", "直播中 (点击画面取消静音)");
@@ -546,9 +532,7 @@
 
             // 统计信息更新
             flvPlayer.on(flvjs.Events.STATISTICS_INFO, (stats) => {
-                const speed = (stats.speed / 1024).toFixed(0);
-                document.getElementById("timeInfo").textContent =
-                    `${speed} KB/s`;
+                // 可选：显示下载速度等
             });
 
         } catch (err) {
@@ -583,7 +567,6 @@
             isPlaying = true;
             isBrowserMuted = false;
             isMuted = false;
-            document.getElementById("playBtn").textContent = "⏸";
             updateMuteUI();
             hideOverlay();
             updateStatus("live", "直播中(代理)");
@@ -668,19 +651,6 @@
     /* ============================================================
      *  播放控制
      * ============================================================ */
-    function togglePlay() {
-        if (!flvPlayer) return;
-        if (isPlaying) {
-            flvPlayer.pause();
-            isPlaying = false;
-            document.getElementById("playBtn").textContent = "▶";
-        } else {
-            flvPlayer.play().catch(() => {});
-            isPlaying = true;
-            document.getElementById("playBtn").textContent = "⏸";
-        }
-    }
-
     function setVolume(val) {
         video.volume = val;
         if (parseFloat(val) > 0 && isMuted) {
@@ -744,9 +714,6 @@
         isPureMode = !isPureMode;
         app.classList.toggle("pure-mode", isPureMode);
         document.getElementById("pureBtn").textContent = isPureMode ? "👁 退出" : "🙈 纯画面";
-        if (!isPureMode) {
-            controls.classList.add("visible");
-        }
     }
 
     /* ============================================================
@@ -782,10 +749,6 @@
         if (e.target.tagName === "INPUT") return;
 
         switch (e.key) {
-            case " ":
-                e.preventDefault();
-                togglePlay();
-                break;
             case "f":
             case "F":
                 toggleFullscreen();
