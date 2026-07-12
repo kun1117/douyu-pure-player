@@ -24,8 +24,81 @@
            ============================ */
         #app {
             width: 100%; height: 100vh;
-            position: relative;
+            display: flex;
+            flex-direction: column;
             background: #000;
+        }
+
+        #anchorBar {
+            height: 90px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            background: #0a0a0a;
+            border-bottom: 1px solid rgba(255,255,255,.06);
+        }
+
+        #anchorBar .avatar {
+            width: 64px; height: 64px;
+            border-radius: 50%;
+            overflow: hidden;
+            flex-shrink: 0;
+            border: 2px solid rgba(255,255,255,.12);
+            margin-right: 16px;
+        }
+        #anchorBar .avatar img {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        #anchorBar .info {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        #anchorBar .info .top-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        #anchorBar .info .top-row .name {
+            color: #fff;
+            font-size: 24px;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+        #anchorBar .info .top-row .live-badge {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        #anchorBar .info .top-row .live-badge .dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            background: #ff6b7b;
+            animation: breath 1.5s infinite;
+        }
+        #anchorBar .info .top-row .live-badge .label {
+            color: #ff4444;
+            font-size: 16px;
+            font-weight: 700;
+        }
+        #anchorBar .info .title {
+            color: rgba(255,255,255,.45);
+            font-size: 14px;
+            margin-top: 2px;
+            line-height: 1.3;
+        }
+        @keyframes breath {
+            0%,100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        #videoWrapper {
+            flex: 1;
+            position: relative;
+            min-height: 0;
         }
 
         video {
@@ -169,6 +242,7 @@
 
         /* 纯画面模式 */
         #app.pure-mode #controls { display: none; }
+        #app.pure-mode #anchorBar { display: none; }
         #app.pure-mode video { cursor: none; }
 
         /* ============================
@@ -223,42 +297,61 @@
 
 <!-- ======================== 播放器主体 ======================== -->
 <div id="app">
-    <video id="video" autoplay playsinline></video>
-
-    <!-- 断开/重连遮罩 -->
-    <div id="overlay">
-        <div class="msg">
-            <div class="icon">📡</div>
-            <div class="text" id="overlayText">连接已断开</div>
-            <div class="sub" id="overlaySub">正在尝试自动重连...</div>
-            <button class="retry-btn" onclick="manualReconnect()">手动重连</button>
+    <!-- 主播信息栏（视频上方靠左，不遮挡画面） -->
+    <div id="anchorBar">
+        <div class="avatar">
+            <img id="anchorAvatar" src="" alt="头像" />
+        </div>
+        <div class="info">
+            <div class="top-row">
+                <span class="name" id="anchorName">加载中</span>
+                <span class="live-badge">
+                    <span class="dot"></span>
+                    <span class="label" id="anchorStatus">...中</span>
+                </span>
+            </div>
+            <div class="title" id="anchorTitle">获取主播信息中</div>
         </div>
     </div>
 
-    <!-- 顶部控制栏 -->
-    <div id="controls">
-        <div id="topBar">
-            <div class="room-tag">
-                <span class="dot on" id="statusDot"></span>
-                <span id="statusText">直播中</span>
+    <div id="videoWrapper">
+        <video id="video" autoplay playsinline></video>
+
+        <!-- 断开/重连遮罩 -->
+        <div id="overlay">
+            <div class="msg">
+                <div class="icon">📡</div>
+                <div class="text" id="overlayText">连接已断开</div>
+                <div class="sub" id="overlaySub">正在尝试自动重连...</div>
+                <button class="retry-btn" onclick="manualReconnect()">手动重连</button>
             </div>
-            <div class="room-info" id="roomInfo">房间 ...</div>
-            <div class="room-info" id="qualityInfo">原画</div>
-            <div class="spacer"></div>
-            <button class="ctrl-btn" onclick="togglePure()" id="pureBtn">🙈 纯画面</button>
-            <input id="reconnectInput" type="text" placeholder="换房间号" style="width:90px;padding:4px 8px;border-radius:4px;border:none;outline:none;background:rgba(255,255,255,.1);color:#fff;font-size:13px;" />
-            <button class="ctrl-btn" onclick="switchRoom()">切换</button>
         </div>
 
-        <div id="bottomBar">
-            <button class="play-btn" id="playBtn" onclick="togglePlay()">⏸</button>
-            <div class="time-info" id="timeInfo">00:00</div>
-            <div class="vol-group">
-                <button id="muteBtn" onclick="toggleMute()" style="background:transparent;border:none;color:rgba(255,255,255,.7);font-size:16px;cursor:pointer;padding:2px;" title="静音开关">🔊</button>
-                <input type="range" id="volSlider" min="0" max="1" step="0.05" value="1" oninput="setVolume(this.value)" />
+        <!-- 顶部控制栏 -->
+        <div id="controls">
+            <div id="topBar">
+                <div class="room-tag">
+                    <span class="dot on" id="statusDot"></span>
+                    <span id="statusText">直播中</span>
+                </div>
+                <div class="room-info" id="roomInfo">房间 ...</div>
+                <div class="room-info" id="qualityInfo">原画</div>
+                <div class="spacer"></div>
+                <button class="ctrl-btn" onclick="togglePure()" id="pureBtn">🙈 纯画面</button>
+                <input id="reconnectInput" type="text" placeholder="换房间号" style="width:90px;padding:4px 8px;border-radius:4px;border:none;outline:none;background:rgba(255,255,255,.1);color:#fff;font-size:13px;" />
+                <button class="ctrl-btn" onclick="switchRoom()">切换</button>
             </div>
-            <div class="ctrl-group">
-                <button onclick="toggleFullscreen()" title="全屏">⛶</button>
+
+            <div id="bottomBar">
+                <button class="play-btn" id="playBtn" onclick="togglePlay()">⏸</button>
+                <div class="time-info" id="timeInfo">00:00</div>
+                <div class="vol-group">
+                    <button id="muteBtn" onclick="toggleMute()" style="background:transparent;border:none;color:rgba(255,255,255,.7);font-size:16px;cursor:pointer;padding:2px;" title="静音开关">🔊</button>
+                    <input type="range" id="volSlider" min="0" max="1" step="0.05" value="1" oninput="setVolume(this.value)" />
+                </div>
+                <div class="ctrl-group">
+                    <button onclick="toggleFullscreen()" title="全屏">⛶</button>
+                </div>
             </div>
         </div>
     </div>
@@ -283,6 +376,7 @@
 
     const video = document.getElementById("video");
     const app = document.getElementById("app");
+    const videoWrapper = document.getElementById("videoWrapper");
     const controls = document.getElementById("controls");
     const overlay = document.getElementById("overlay");
 
@@ -346,6 +440,15 @@
                         `${room.nickname} · ${room.room_name}`;
                     const dot = document.getElementById("statusDot");
                     dot.className = `dot ${room.status === "1" ? "on" : "off"}`;
+
+                    // 填充主播信息卡片（视频上方）
+                    const isLive = room.status === "1";
+                    document.getElementById("anchorName").textContent = room.nickname || "未知";
+                    document.getElementById("anchorStatus").textContent = isLive ? "开播" : "未开播";
+                    document.getElementById("anchorTitle").textContent = room.room_name || "";
+                    if (room.avatar?.small) {
+                        document.getElementById("anchorAvatar").src = room.avatar.small;
+                    }
                 }
             }
 
@@ -628,7 +731,7 @@
 
     function toggleFullscreen() {
         if (!document.fullscreenElement) {
-            app.requestFullscreen?.() || app.webkitRequestFullscreen?.();
+            videoWrapper.requestFullscreen?.() || videoWrapper.webkitRequestFullscreen?.();
         } else {
             document.exitFullscreen?.() || document.webkitExitFullscreen?.();
         }
