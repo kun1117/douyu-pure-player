@@ -223,7 +223,7 @@
 
 <!-- ======================== 播放器主体 ======================== -->
 <div id="app">
-    <video id="video" autoplay muted playsinline></video>
+    <video id="video" autoplay playsinline></video>
 
     <!-- 断开/重连遮罩 -->
     <div id="overlay">
@@ -254,7 +254,7 @@
             <button class="play-btn" id="playBtn" onclick="togglePlay()">⏸</button>
             <div class="time-info" id="timeInfo">00:00</div>
             <div class="vol-group">
-                <span style="color:rgba(255,255,255,.5);font-size:13px;">🔊</span>
+                <button id="muteBtn" onclick="toggleMute()" style="background:transparent;border:none;color:rgba(255,255,255,.7);font-size:16px;cursor:pointer;padding:2px;" title="静音开关">🔊</button>
                 <input type="range" id="volSlider" min="0" max="1" step="0.05" value="1" oninput="setVolume(this.value)" />
             </div>
             <div class="ctrl-group">
@@ -272,6 +272,8 @@
     let currentRoomId = "";
     let isPlaying = false;
     let isPureMode = false;
+    let isMuted = false;
+    let isBrowserMuted = false;  // 浏览器因自动播放策略强制静音
     let reconnectTimer = null;
     let reconnectAttempts = 0;
     const MAX_RECONNECT = 10;
@@ -402,15 +404,35 @@
 
             flvPlayer.attachMediaElement(video);
             flvPlayer.load();
+
+            // 先解除静音（在用户手势上下文中，play() 可以带声音）
+            video.muted = false;
+            video.volume = parseFloat(document.getElementById("volSlider").value) || 1;
+
             flvPlayer.play().then(() => {
                 isPlaying = true;
+                isBrowserMuted = false;
+                isMuted = false;
                 document.getElementById("playBtn").textContent = "⏸";
+                updateMuteUI();
                 hideOverlay();
                 updateStatus("live", "直播中");
             }).catch((err) => {
-                console.warn("flv.js play() 被阻止，尝试代理模式...", err);
-                // 如果直连失败，尝试用代理
-                tryProxyPlay(url);
+                // 浏览器自动播放政策阻止带声音播放 → 回退到静音自动播放
+                console.warn("带声音播放被阻止，回退静音模式:", err.message);
+                video.muted = true;
+                isBrowserMuted = true;
+                isMuted = true;
+                flvPlayer.play().then(() => {
+                    isPlaying = true;
+                    document.getElementById("playBtn").textContent = "⏸";
+                    updateMuteUI();
+                    hideOverlay();
+                    updateStatus("live", "直播中 (点击画面取消静音)");
+                }).catch((err2) => {
+                    console.warn("flv.js play() 被阻止，尝试代理模式...", err2);
+                    tryProxyPlay(url);
+                });
             });
 
             // 错误监听
@@ -452,9 +474,14 @@
 
             flvPlayer.attachMediaElement(video);
             flvPlayer.load();
+            video.muted = false;
+            video.volume = parseFloat(document.getElementById("volSlider").value) || 1;
             await flvPlayer.play();
             isPlaying = true;
+            isBrowserMuted = false;
+            isMuted = false;
             document.getElementById("playBtn").textContent = "⏸";
+            updateMuteUI();
             hideOverlay();
             updateStatus("live", "直播中(代理)");
         } catch (err2) {
@@ -553,7 +580,51 @@
 
     function setVolume(val) {
         video.volume = val;
+        if (parseFloat(val) > 0 && isMuted) {
+            // 用户主动调音量 → 自动取消静音
+            video.muted = false;
+            isMuted = false;
+            isBrowserMuted = false;
+            updateMuteUI();
+        }
     }
+
+    function toggleMute() {
+        if (isMuted) {
+            video.muted = false;
+            isMuted = false;
+            isBrowserMuted = false;
+            document.getElementById("volSlider").value = 1;
+            video.volume = 1;
+        } else {
+            video.muted = true;
+            isMuted = true;
+        }
+        updateMuteUI();
+    }
+
+    function updateMuteUI() {
+        const btn = document.getElementById("muteBtn");
+        if (isMuted) {
+            btn.textContent = isBrowserMuted ? "🔇" : "🔇";
+            btn.title = isBrowserMuted ? "浏览器已静音，点击取消静音" : "已静音，点击取消";
+        } else {
+            btn.textContent = "🔊";
+            btn.title = "静音开关";
+        }
+    }
+
+    // 点击画面取消浏览器静音
+    video.addEventListener("click", () => {
+        if (isBrowserMuted) {
+            video.muted = false;
+            isMuted = false;
+            isBrowserMuted = false;
+            video.volume = parseFloat(document.getElementById("volSlider").value) || 1;
+            updateMuteUI();
+            updateStatus("live", "直播中");
+        }
+    });
 
     function toggleFullscreen() {
         if (!document.fullscreenElement) {
